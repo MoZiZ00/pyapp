@@ -149,10 +149,3 @@ resource "azurerm_app_service_virtual_network_swift_connection" {
 }
 
 
-#Steps to Deploy:
-
-#Initialize Terraform:
-#terraform init
-
-#Apply the Configuration:
-#terraform apply
