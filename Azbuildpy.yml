@@ -1,0 +1,59 @@
+trigger:
+- main
+
+variables:
+  # Docker image details
+  imageName: 'pyapp'
+  tag: 'v1.0'
+
+  # Azure Container Registry details
+  acrName: 'testpy'
+  acrLoginServer: 'testpy.azurecr.io'
+
+  # Azure App Service details
+  appServiceName: 'app-py-prod-westus-01'
+  resourceGroupName: 'rg-py-prod-westus-01'
+
+stages:
+- stage: Build
+  jobs:
+  - job: Build
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+        addToPath: true
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+      displayName: 'Install dependencies'
+
+    - task: Docker@2
+      inputs:
+        containerRegistry: '$(acrName)'
+        repository: '$(acrLoginServer)/$(imageName)'
+        command: 'buildAndPush'
+        Dockerfile: 'https://moatazsaadany@dev.azure.com/moatazsaadany/Moataz-Test/_git/Moataz-Test/Dockerfile'
+        tags: '$(tag)'
+
+- stage: Deploy
+  jobs:
+  - deployment: Deploy
+    environment: 'production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: '<Azure-ServiceConnection-pyapp>'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az webapp config container set --name $(appServiceName) --resource-group $(resourceGroupName) --docker-custom-image-name $(acrLoginServer)/$(imageName):$(tag)
+              addSpnToEnvironment: true
